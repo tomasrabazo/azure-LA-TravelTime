@@ -1,0 +1,280 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "connections_gmail_name": {
+            "defaultValue": "gmail",
+            "type": "String"
+        },
+        "connections_bingmaps_name": {
+            "defaultValue": "bingmaps",
+            "type": "String"
+        },
+        "workflows_LA_TravelTime1_name": {
+            "defaultValue": "LA-TravelTime1",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[parameters('connections_bingmaps_name')]",
+            "location": "uksouth",
+            "kind": "V1",
+            "properties": {
+                "displayName": "BingMapsConnection",
+                "statuses": [
+                    {
+                        "status": "Connected"
+                    }
+                ],
+                "customParameterValues": {},
+                "nonSecretParameterValues": {},
+                "createdTime": "2023-06-22T08:37:21.1436764Z",
+                "changedTime": "2023-06-22T08:37:21.1436764Z",
+                "api": {
+                    "name": "[parameters('connections_bingmaps_name')]",
+                    "displayName": "Bing Maps",
+                    "description": "Bing Maps",
+                    "iconUri": "[concat('https://connectoricons-prod.azureedge.net/releases/v1.0.1636/1.0.1636.3297/', parameters('connections_bingmaps_name'), '/icon.png')]",
+                    "brandColor": "#008372",
+                    "id": "[concat('/subscriptions/0f599bff-4fc9-44ef-b746-7d12a62e7c45/providers/Microsoft.Web/locations/uksouth/managedApis/', parameters('connections_bingmaps_name'))]",
+                    "type": "Microsoft.Web/locations/managedApis"
+                },
+                "testLinks": []
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[parameters('connections_gmail_name')]",
+            "location": "uksouth",
+            "kind": "V1",
+            "properties": {
+                "displayName": "ConnectionGmail",
+                "statuses": [
+                    {
+                        "status": "Connected"
+                    }
+                ],
+                "customParameterValues": {},
+                "createdTime": "2023-06-22T08:51:21.5561994Z",
+                "changedTime": "2023-06-22T08:51:29.0807668Z",
+                "api": {
+                    "name": "[parameters('connections_gmail_name')]",
+                    "displayName": "Gmail",
+                    "description": "Gmail is a web-based email service from Google. With the Gmail connector, you can perform actions such as send or receive e-mail messages, and trigger flows on new e-mails.",
+                    "iconUri": "[concat('https://connectoricons-prod.azureedge.net/releases/v1.0.1626/1.0.1626.3238/', parameters('connections_gmail_name'), '/icon.png')]",
+                    "brandColor": "#20427f",
+                    "id": "[concat('/subscriptions/0f599bff-4fc9-44ef-b746-7d12a62e7c45/providers/Microsoft.Web/locations/uksouth/managedApis/', parameters('connections_gmail_name'))]",
+                    "type": "Microsoft.Web/locations/managedApis"
+                },
+                "testLinks": [
+                    {
+                        "requestUri": "[concat('https://management.azure.com:443/subscriptions/0f599bff-4fc9-44ef-b746-7d12a62e7c45/resourceGroups/tomas-LA-TravelTime-RG/providers/Microsoft.Web/connections/', parameters('connections_gmail_name'), '/extensions/proxy/TestConnection?api-version=2016-06-01')]",
+                        "method": "get"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_LA_TravelTime1_name')]",
+            "location": "uksouth",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connections_bingmaps_name'))]",
+                "[resourceId('Microsoft.Web/connections', parameters('connections_gmail_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Check_travel_time_every_weekday_morning": {
+                            "recurrence": {
+                                "frequency": "Week",
+                                "interval": 1,
+                                "schedule": {
+                                    "hours": [
+                                        "7",
+                                        "8",
+                                        "9"
+                                    ],
+                                    "minutes": [
+                                        0,
+                                        15,
+                                        30,
+                                        45
+                                    ],
+                                    "weekDays": [
+                                        "Monday",
+                                        "Tuesday",
+                                        "Wednesday",
+                                        "Thursday",
+                                        "Friday"
+                                    ]
+                                }
+                            },
+                            "evaluatedRecurrence": {
+                                "frequency": "Week",
+                                "interval": 1,
+                                "schedule": {
+                                    "hours": [
+                                        "7",
+                                        "8",
+                                        "9"
+                                    ],
+                                    "minutes": [
+                                        0,
+                                        15,
+                                        30,
+                                        45
+                                    ],
+                                    "weekDays": [
+                                        "Monday",
+                                        "Tuesday",
+                                        "Wednesday",
+                                        "Thursday",
+                                        "Friday"
+                                    ]
+                                }
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "Create_variable_to_store_travel_time": {
+                            "runAfter": {
+                                "Get_route_and_travel_time_with_traffic": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "travelTime",
+                                        "type": "integer",
+                                        "value": "@div(body('Get_route_and_travel_time_with_traffic')?['travelDurationTraffic'],60)"
+                                    }
+                                ]
+                            }
+                        },
+                        "Get_route_and_travel_time_with_traffic": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['bingmaps']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/V3/REST/V1/Routes/@{encodeURIComponent('Driving')}",
+                                "queries": {
+                                    "avoid_borderCrossing": false,
+                                    "avoid_ferry": false,
+                                    "avoid_highways": false,
+                                    "avoid_minimizeHighways": false,
+                                    "avoid_minimizeTolls": false,
+                                    "avoid_tolls": false,
+                                    "distanceUnit": "Mile",
+                                    "optimize": "distance",
+                                    "wp.0": "The Button Factory, 25 Frederick St, Birmingham B1 3HH",
+                                    "wp.1": "785 Stratford Rd, Shirley, Solihull B90 4BL"
+                                }
+                            }
+                        },
+                        "If_travel_time_exceeds_limit": {
+                            "actions": {
+                                "Send_email_with_travel_time": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Body": "<p>Add extra travel time (minutes): @{sub(variables('travelTime'),15)}</p>",
+                                            "Subject": "Current travel time (minutes): @{variables('travelTime')}",
+                                            "To": "tomas.rabazo@chakray.co.uk"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['gmail']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v2/Mail"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Create_variable_to_store_travel_time": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "else": {
+                                "actions": {
+                                    "Send_email_(V2)": {
+                                        "runAfter": {},
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "body": {
+                                                "Body": "<p>Travel time (minutes):@{sub(variables('travelTime'),15)}</p>",
+                                                "Subject": "Travel time no greater than 15.",
+                                                "To": "tomas.rabazo@chakray.co.uk"
+                                            },
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['gmail']['connectionId']"
+                                                }
+                                            },
+                                            "method": "post",
+                                            "path": "/v2/Mail"
+                                        }
+                                    }
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "greater": [
+                                            "@variables('travelTime')",
+                                            15
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "bingmaps": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_bingmaps_name'))]",
+                                "connectionName": "bingmaps",
+                                "id": "/subscriptions/0f599bff-4fc9-44ef-b746-7d12a62e7c45/providers/Microsoft.Web/locations/uksouth/managedApis/bingmaps"
+                            },
+                            "gmail": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_gmail_name'))]",
+                                "connectionName": "gmail",
+                                "id": "/subscriptions/0f599bff-4fc9-44ef-b746-7d12a62e7c45/providers/Microsoft.Web/locations/uksouth/managedApis/gmail"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
